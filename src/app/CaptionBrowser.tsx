@@ -192,12 +192,23 @@ export default function CaptionBrowser() {
   const displayedCaptions =
     sortBy === "none"
       ? captions
-      : [...captions].sort((a, b) => {
-          if (sortBy === "downvotes") {
-            return (b.downvote_count ?? 0) - (a.downvote_count ?? 0);
-          }
-          return (b.upvote_count ?? 0) - (a.upvote_count ?? 0);
-        });
+      : captions
+          .map((caption, index) => ({ caption, index }))
+          .sort((a, b) => {
+            const aCount =
+              sortBy === "downvotes"
+                ? a.caption.downvote_count ?? 0
+                : a.caption.upvote_count ?? 0;
+            const bCount =
+              sortBy === "downvotes"
+                ? b.caption.downvote_count ?? 0
+                : b.caption.upvote_count ?? 0;
+            if (bCount !== aCount) {
+              return bCount - aCount;
+            }
+            return a.index - b.index;
+          })
+          .map(({ caption }) => caption);
 
   return (
     <section style={{ marginTop: "16px" }}>
