@@ -290,8 +290,18 @@ export default function CaptionBrowser() {
               )}
               <p style={{ margin: 0 }}>{caption.content ?? "Untitled caption"}</p>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <span>Upvotes: {caption.upvote_count ?? 0}</span>
-                <span>Downvotes: {caption.downvote_count ?? 0}</span>
+                {(() => {
+                  const upvotes = caption.upvote_count ?? 0;
+                  const downvotes = caption.downvote_count ?? 0;
+                  const totalVotes = upvotes + downvotes;
+                  return totalVotes > 0 ? (
+                    <span>
+                      Votes: {totalVotes} (▲ {upvotes} / ▼ {downvotes})
+                    </span>
+                  ) : (
+                    <span>No votes yet</span>
+                  );
+                })()}
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     type="button"
