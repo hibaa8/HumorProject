@@ -9,7 +9,7 @@ export default async function JokesPage() {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/login");
+    redirect("/");
   }
 
   return (
