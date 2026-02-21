@@ -1,9 +1,27 @@
+import { redirect } from "next/navigation";
 import CaptionBrowser from "@/app/CaptionBrowser";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-export default function JokesPage() {
+export default async function JokesPage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
   return (
-    <main style={{ padding: "24px", fontFamily: "system-ui, sans-serif" }}>
-      <h1>Captions by Humor Flavor</h1>
+    <main
+      style={{
+        padding: "32px 24px",
+        fontFamily: "system-ui, sans-serif",
+        background: "linear-gradient(160deg, #0b0b0f, #111827)",
+        minHeight: "100vh",
+        color: "#f9fafb",
+      }}
+    >
       <CaptionBrowser />
     </main>
   );

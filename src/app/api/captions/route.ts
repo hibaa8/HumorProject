@@ -24,7 +24,9 @@ export async function GET(request: Request) {
 
   let captionsQuery = supabase
     .from("captions")
-    .select("id, content, humor_flavor_id, images (url, image_description)")
+    .select(
+      "id, content, humor_flavor_id, created_datetime_utc, images!inner(url, image_description)"
+    )
     .order("created_datetime_utc", { ascending: false })
     .range(rangeStart, rangeEnd);
 

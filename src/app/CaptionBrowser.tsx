@@ -13,6 +13,7 @@ type CaptionRow = {
   id: string;
   content: string | null;
   humor_flavor_id: number | null;
+  created_datetime_utc?: string;
   upvote_count?: number;
   downvote_count?: number;
   my_vote?: number;
@@ -28,8 +29,8 @@ const PAGE_SIZE_MORE = 50;
 export default function CaptionBrowser() {
   const [flavors, setFlavors] = useState<HumorFlavor[]>([]);
   const [selectedFlavorId, setSelectedFlavorId] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"none" | "upvotes" | "downvotes">(
-    "none"
+  const [sortBy, setSortBy] = useState<"upvotes" | "downvotes" | "time">(
+    "upvotes"
   );
   const [captions, setCaptions] = useState<CaptionRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,6 +178,14 @@ export default function CaptionBrowser() {
           };
         });
         return updated.sort((a, b) => {
+          if (sortBy === "time") {
+            const aTime = a.created_datetime_utc ?? "";
+            const bTime = b.created_datetime_utc ?? "";
+            if (bTime !== aTime) {
+              return bTime.localeCompare(aTime);
+            }
+            return 0;
+          }
           if (sortBy === "downvotes") {
             return (b.downvote_count ?? 0) - (a.downvote_count ?? 0);
           }
@@ -189,34 +198,55 @@ export default function CaptionBrowser() {
     setVotingId(null);
   };
 
-  const displayedCaptions =
-    sortBy === "none"
-      ? captions
-      : captions
-          .map((caption, index) => ({ caption, index }))
-          .sort((a, b) => {
-            const aCount =
-              sortBy === "downvotes"
-                ? a.caption.downvote_count ?? 0
-                : a.caption.upvote_count ?? 0;
-            const bCount =
-              sortBy === "downvotes"
-                ? b.caption.downvote_count ?? 0
-                : b.caption.upvote_count ?? 0;
-            if (bCount !== aCount) {
-              return bCount - aCount;
-            }
-            return a.index - b.index;
-          })
-          .map(({ caption }) => caption);
+  const displayedCaptions = captions
+    .map((caption, index) => ({ caption, index }))
+    .sort((a, b) => {
+      if (sortBy === "time") {
+        const aTime = a.caption.created_datetime_utc ?? "";
+        const bTime = b.caption.created_datetime_utc ?? "";
+        if (bTime !== aTime) {
+          return bTime.localeCompare(aTime);
+        }
+        return a.index - b.index;
+      }
+      const aCount =
+        sortBy === "downvotes"
+          ? a.caption.downvote_count ?? 0
+          : a.caption.upvote_count ?? 0;
+      const bCount =
+        sortBy === "downvotes"
+          ? b.caption.downvote_count ?? 0
+          : b.caption.upvote_count ?? 0;
+      if (bCount !== aCount) {
+        return bCount - aCount;
+      }
+      return a.index - b.index;
+    })
+    .map(({ caption }) => caption);
 
   return (
-    <section style={{ marginTop: "16px" }}>
+    <section
+      style={{
+        marginTop: "16px",
+        color: "#f9fafb",
+        background: "linear-gradient(160deg, #0b0b0f, #111827)",
+        borderRadius: "24px",
+        padding: "24px",
+        border: "1px solid #1f2937",
+      }}
+    >
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <label>
           Humor flavor:
           <select
-            style={{ marginLeft: "8px" }}
+            style={{
+              marginLeft: "8px",
+              background: "#0b0b0f",
+              color: "#f9fafb",
+              border: "1px solid #1f2937",
+              borderRadius: "8px",
+              padding: "4px 8px",
+            }}
             value={selectedFlavorId}
             onChange={(event) => {
               setSelectedFlavorId(event.target.value);
@@ -233,17 +263,24 @@ export default function CaptionBrowser() {
         <label>
           Filter by:
           <select
-            style={{ marginLeft: "8px" }}
+            style={{
+              marginLeft: "8px",
+              background: "#0b0b0f",
+              color: "#f9fafb",
+              border: "1px solid #1f2937",
+              borderRadius: "8px",
+              padding: "4px 8px",
+            }}
             value={sortBy}
             onChange={(event) =>
               setSortBy(
-                event.target.value as "none" | "upvotes" | "downvotes"
+                event.target.value as "upvotes" | "downvotes" | "time"
               )
             }
           >
-            <option value="none">None</option>
             <option value="upvotes">Upvotes</option>
             <option value="downvotes">Downvotes</option>
+            <option value="time">Most recent</option>
           </select>
         </label>
       </div>
@@ -261,17 +298,19 @@ export default function CaptionBrowser() {
             gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           }}
         >
-          {displayedCaptions.map((caption) => (
+          {displayedCaptions.map((caption, index) => (
             <article
-              key={caption.id}
+              key={`${caption.id}-${index}`}
               style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
+                border: "1px solid #1f2937",
+                borderRadius: "14px",
                 padding: "16px",
                 display: "grid",
                 gap: "12px",
                 maxWidth: "420px",
                 width: "100%",
+                background: "#0f172a",
+                boxShadow: "0 10px 24px rgba(0, 0, 0, 0.35)",
               }}
             >
               {caption.images?.url ? (
@@ -281,24 +320,12 @@ export default function CaptionBrowser() {
                   style={{
                     width: "100%",
                     height: "240px",
-                    objectFit: "contain",
-                    background: "#f9fafb",
+                    objectFit: "cover",
+                    background: "#0b0b0f",
+                    borderRadius: "10px",
                   }}
                 />
-              ) : (
-                <div
-                  style={{
-                    background: "#f3f4f6",
-                    height: "240px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#6b7280",
-                  }}
-                >
-                  No image available
-                </div>
-              )}
+              ) : null}
               <p style={{ margin: 0 }}>{caption.content ?? "Untitled caption"}</p>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 {(() => {
@@ -319,6 +346,7 @@ export default function CaptionBrowser() {
                     className="vote-button"
                     onClick={() => submitVote(caption.id, 1)}
                     disabled={votingId === caption.id || caption.my_vote === 1}
+                    aria-label="Upvote"
                   >
                     ▲
                   </button>
@@ -327,6 +355,7 @@ export default function CaptionBrowser() {
                     className="vote-button"
                     onClick={() => submitVote(caption.id, -1)}
                     disabled={votingId === caption.id || caption.my_vote === -1}
+                    aria-label="Downvote"
                   >
                     ▼
                   </button>
