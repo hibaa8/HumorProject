@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import CaptionBrowser from "@/app/CaptionBrowser";
 import Navbar from "@/app/components/Navbar";
+import GenerateCaptions from "@/app/GenerateCaptions";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-export default async function JokesPage() {
+export default async function GeneratePage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
@@ -24,7 +24,7 @@ export default async function JokesPage() {
       }}
     >
       <Navbar />
-      <CaptionBrowser />
+      <GenerateCaptions />
     </main>
   );
 }

@@ -41,23 +41,6 @@ export default function CaptionBrowser() {
   const lastFetchKeyRef = useRef<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pipelineStatus, setPipelineStatus] = useState<
-    "idle" | "uploading" | "success" | "error"
-  >("idle");
-  const [pipelineError, setPipelineError] = useState<string | null>(null);
-  const [generatedCaptions, setGeneratedCaptions] = useState<
-    Array<Record<string, unknown>>
-  >([]);
-
-  const allowedTypes = new Set([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "image/heic",
-  ]);
 
   useEffect(() => {
     const loadFlavors = async () => {
@@ -215,79 +198,6 @@ export default function CaptionBrowser() {
     setVotingId(null);
   };
 
-  const handleGenerateCaptions = async () => {
-    if (!selectedFile) {
-      setPipelineError("Please choose an image file.");
-      return;
-    }
-    if (!allowedTypes.has(selectedFile.type)) {
-      setPipelineError("Unsupported image type.");
-      return;
-    }
-
-    setPipelineStatus("uploading");
-    setPipelineError(null);
-    setGeneratedCaptions([]);
-
-    try {
-      const presignedResponse = await fetch("/api/pipeline/presigned-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: selectedFile.type }),
-      });
-      if (!presignedResponse.ok) {
-        throw new Error("Failed to generate upload URL.");
-      }
-      const presignedPayload = (await presignedResponse.json()) as {
-        presignedUrl: string;
-        cdnUrl: string;
-      };
-
-      const uploadResponse = await fetch(presignedPayload.presignedUrl, {
-        method: "PUT",
-        headers: { "Content-Type": selectedFile.type },
-        body: selectedFile,
-      });
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload image.");
-      }
-
-      const registerResponse = await fetch("/api/pipeline/register-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: presignedPayload.cdnUrl,
-          isCommonUse: false,
-        }),
-      });
-      if (!registerResponse.ok) {
-        throw new Error("Failed to register image.");
-      }
-      const registerPayload = (await registerResponse.json()) as {
-        imageId: string;
-      };
-
-      const captionsResponse = await fetch("/api/pipeline/generate-captions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageId: registerPayload.imageId }),
-      });
-      if (!captionsResponse.ok) {
-        throw new Error("Failed to generate captions.");
-      }
-      const captionsPayload =
-        (await captionsResponse.json()) as Array<Record<string, unknown>>;
-
-      setGeneratedCaptions(captionsPayload ?? []);
-      setPipelineStatus("success");
-    } catch (error) {
-      setPipelineStatus("error");
-      setPipelineError(
-        error instanceof Error ? error.message : "Pipeline failed."
-      );
-    }
-  };
-
   const displayedCaptions = captions
     .map((caption, index) => ({ caption, index }))
     .sort((a, b) => {
@@ -325,64 +235,6 @@ export default function CaptionBrowser() {
         border: "1px solid #1f2937",
       }}
     >
-      <section
-        style={{
-          display: "grid",
-          gap: "12px",
-          padding: "16px",
-          borderRadius: "16px",
-          border: "1px solid #1f2937",
-          background: "#0f172a",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Upload an image</h2>
-        <p style={{ margin: 0, color: "#cbd5f5" }}>
-          Generate fresh captions by uploading a new image.
-        </p>
-        <input
-          type="file"
-          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/heic"
-          onChange={(event) => {
-            setSelectedFile(event.target.files?.[0] ?? null);
-          }}
-        />
-        <button
-          type="button"
-          className="vote-button"
-          onClick={handleGenerateCaptions}
-          disabled={pipelineStatus === "uploading"}
-          style={{ width: "fit-content" }}
-        >
-          {pipelineStatus === "uploading" ? "Processing..." : "Generate captions"}
-        </button>
-        {pipelineError ? (
-          <p style={{ color: "#fca5a5", margin: 0 }}>{pipelineError}</p>
-        ) : null}
-        {generatedCaptions.length > 0 ? (
-          <div style={{ display: "grid", gap: "8px" }}>
-            <strong>Generated captions</strong>
-            {generatedCaptions.map((caption, index) => (
-              <div
-                key={`generated-${index}`}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid #1f2937",
-                  background: "#111827",
-                }}
-              >
-                {String(
-                  caption.content ??
-                    caption.caption ??
-                    caption.text ??
-                    "Caption generated."
-                )}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </section>
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <label>
           Humor flavor:
