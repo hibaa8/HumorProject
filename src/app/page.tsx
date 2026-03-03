@@ -15,24 +15,41 @@ export default async function Home() {
   const allowedSlugs = new Set([
     "nature-documentary",
     "gen-z-dark-roast",
-    "social-justice-warrior",
     "corecore-man",
     "russ-hanemann",
     "gigachad",
-    "erlich-bachman",
     "dwight-schrute",
     "columbia",
     "pov-pov",
   ]);
+
+  const excludedSlugs = new Set(["erlich-bachman", "social-justice-warrior"]);
 
   const { data: allFlavors } = await supabase
     .from("humor_flavors")
     .select("id, slug, description")
     .order("id");
 
+  const { data: captionRows } = await supabase
+    .from("captions")
+    .select("humor_flavor_id");
+
+  const flavorIdsWithCaptions = new Set(
+    (captionRows ?? [])
+      .map((row) => row.humor_flavor_id)
+      .filter((id): id is number => Boolean(id))
+  );
+
   const flavors = (allFlavors ?? []).filter((flavor) => {
     const slug = flavor.slug ?? "";
-    return allowedSlugs.has(slug) || slug.startsWith("ter-re-");
+    if (excludedSlugs.has(slug)) {
+      return false;
+    }
+    const isRequired = allowedSlugs.has(slug) || slug.startsWith("ter-re-");
+    if (isRequired) {
+      return true;
+    }
+    return flavorIdsWithCaptions.has(flavor.id);
   });
 
   return (

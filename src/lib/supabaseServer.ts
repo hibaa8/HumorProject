@@ -33,7 +33,11 @@ export const createSupabaseServerClient = async () => {
           return;
         }
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStoreAny.set?.(name, value, options);
+          try {
+            cookieStoreAny.set?.(name, value, options);
+          } catch {
+            // Ignore cookie write errors in read-only contexts.
+          }
         });
       },
     },

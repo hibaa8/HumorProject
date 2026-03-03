@@ -23,15 +23,15 @@ type CaptionRow = {
   } | null;
 };
 
-const PAGE_SIZE_INITIAL = 20;
+const PAGE_SIZE_INITIAL = 50;
 const PAGE_SIZE_MORE = 50;
 
 export default function CaptionBrowser() {
   const [flavors, setFlavors] = useState<HumorFlavor[]>([]);
   const [selectedFlavorId, setSelectedFlavorId] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"upvotes" | "downvotes" | "time">(
-    "upvotes"
-  );
+  const [sortBy, setSortBy] = useState<
+    "upvotes" | "downvotes" | "time" | "oldest"
+  >("upvotes");
   const [captions, setCaptions] = useState<CaptionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export default function CaptionBrowser() {
 
   useEffect(() => {
     const loadInitial = async () => {
-      const fetchKey = `${selectedFlavorId}-0-${PAGE_SIZE_INITIAL}`;
+      const fetchKey = `${selectedFlavorId}-${sortBy}-0-${PAGE_SIZE_INITIAL}`;
       if (lastFetchKeyRef.current === fetchKey) {
         return;
       }
@@ -75,7 +75,7 @@ export default function CaptionBrowser() {
       setHasMore(true);
 
       const response = await fetch(
-        `/api/captions?flavorId=${selectedFlavorId}&offset=0&limit=${PAGE_SIZE_INITIAL}`
+        `/api/captions?flavorId=${selectedFlavorId}&sort=${sortBy}&offset=0&limit=${PAGE_SIZE_INITIAL}`
       );
       if (!response.ok) {
         setError("Unable to load captions.");
@@ -95,7 +95,7 @@ export default function CaptionBrowser() {
     };
 
     void loadInitial();
-  }, [selectedFlavorId]);
+  }, [selectedFlavorId, sortBy]);
 
   const loadMore = async () => {
     if (loading || !hasMore) {
@@ -108,7 +108,7 @@ export default function CaptionBrowser() {
 
     const nextOffset = offset;
     const response = await fetch(
-      `/api/captions?flavorId=${selectedFlavorId}&offset=${nextOffset}&limit=${PAGE_SIZE_MORE}`
+      `/api/captions?flavorId=${selectedFlavorId}&sort=${sortBy}&offset=${nextOffset}&limit=${PAGE_SIZE_MORE}`
     );
     if (!response.ok) {
       setError("Unable to load more captions.");
@@ -177,20 +177,7 @@ export default function CaptionBrowser() {
             my_vote: payload.myVote ?? caption.my_vote ?? 0,
           };
         });
-        return updated.sort((a, b) => {
-          if (sortBy === "time") {
-            const aTime = a.created_datetime_utc ?? "";
-            const bTime = b.created_datetime_utc ?? "";
-            if (bTime !== aTime) {
-              return bTime.localeCompare(aTime);
-            }
-            return 0;
-          }
-          if (sortBy === "downvotes") {
-            return (b.downvote_count ?? 0) - (a.downvote_count ?? 0);
-          }
-          return (b.upvote_count ?? 0) - (a.upvote_count ?? 0);
-        });
+        return updated;
       });
     }
 
@@ -198,31 +185,7 @@ export default function CaptionBrowser() {
     setVotingId(null);
   };
 
-  const displayedCaptions = captions
-    .map((caption, index) => ({ caption, index }))
-    .sort((a, b) => {
-      if (sortBy === "time") {
-        const aTime = a.caption.created_datetime_utc ?? "";
-        const bTime = b.caption.created_datetime_utc ?? "";
-        if (bTime !== aTime) {
-          return bTime.localeCompare(aTime);
-        }
-        return a.index - b.index;
-      }
-      const aCount =
-        sortBy === "downvotes"
-          ? a.caption.downvote_count ?? 0
-          : a.caption.upvote_count ?? 0;
-      const bCount =
-        sortBy === "downvotes"
-          ? b.caption.downvote_count ?? 0
-          : b.caption.upvote_count ?? 0;
-      if (bCount !== aCount) {
-        return bCount - aCount;
-      }
-      return a.index - b.index;
-    })
-    .map(({ caption }) => caption);
+  const displayedCaptions = captions;
 
   return (
     <section
@@ -274,13 +237,18 @@ export default function CaptionBrowser() {
             value={sortBy}
             onChange={(event) =>
               setSortBy(
-                event.target.value as "upvotes" | "downvotes" | "time"
+                event.target.value as
+                  | "upvotes"
+                  | "downvotes"
+                  | "time"
+                  | "oldest"
               )
             }
           >
             <option value="upvotes">Upvotes</option>
             <option value="downvotes">Downvotes</option>
             <option value="time">Most recent</option>
+            <option value="oldest">Oldest</option>
           </select>
         </label>
       </div>
@@ -293,9 +261,10 @@ export default function CaptionBrowser() {
         <div
           style={{
             display: "grid",
-            gap: "16px",
+            gap: "12px",
             marginTop: "12px",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            alignItems: "start",
           }}
         >
           {displayedCaptions.map((caption, index) => (
