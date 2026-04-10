@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next({
+  let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -24,12 +24,32 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        /*
+         * Supabase SSR: after refresh, update the request cookie jar so getAll()
+         * sees new values in this same turn, then clone the outgoing response so
+         * Set-Cookie reaches the browser. Only setting response.cookies (old
+         * pattern) can miss the refreshed session on Vercel Edge.
+         */
+        try {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+        } catch {
+          /* Rare Edge restriction on mutating request cookies */
+        }
+
+        response = NextResponse.next({
+          request: {
+            headers: request.headers,
+          },
+        });
+
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
         } catch {
-          /* Edge / cookie limits — avoid failing the whole request */
+          /* Edge / cookie limits */
         }
       },
     },
@@ -38,9 +58,8 @@ export async function middleware(request: NextRequest) {
   /*
    * Use getSession() here, not getUser(). getUser() revalidates the JWT with a
    * server round-trip and often returns null on Vercel Edge, which incorrectly
-   * triggers redirects to / for logged-in users. Session is read from cookies
-   * (and refreshed via setAll when needed). Route handlers / RSC should still
-   * use getUser() where you need a verified user.
+   * triggers redirects for logged-in users. Session is read from cookies
+   * (and refreshed via setAll when needed).
    */
   const {
     data: { session },
@@ -61,10 +80,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/";
-    homeUrl.search = "";
-    return NextResponse.redirect(homeUrl);
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   response.headers.set(
@@ -77,10 +96,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all pathnames except static assets (Vercel / Next).
-     * Avoid running middleware on files that never need auth.
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
