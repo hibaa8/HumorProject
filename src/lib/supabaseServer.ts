@@ -12,31 +12,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/**
+ * Matches humorproject-admin pattern: use the request cookie store’s getAll/set
+ * directly so PKCE + session cookies persist on Vercel after OAuth callback.
+ */
 export const createSupabaseServerClient = async () => {
   const cookieStore = await cookies();
-  const cookieStoreAny = cookieStore as {
-    getAll?: () => { name: string; value: string }[];
-    set?: (name: string, value: string, options?: unknown) => void;
-  };
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(),
     cookies: {
       getAll() {
-        if (typeof cookieStoreAny.getAll === "function") {
-          return cookieStoreAny.getAll();
-        }
-        return [];
+        return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        if (typeof cookieStoreAny.set !== "function") {
-          return;
-        }
         cookiesToSet.forEach(({ name, value, options }) => {
           try {
-            cookieStoreAny.set?.(name, value, options);
+            cookieStore.set(name, value, options);
           } catch {
-            // Ignore cookie write errors in read-only contexts.
+            // Read-only contexts (e.g. some RSC); middleware handles refresh.
           }
         });
       },

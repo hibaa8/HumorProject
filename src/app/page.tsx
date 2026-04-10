@@ -72,7 +72,7 @@ export default async function Home() {
               paddingTop: "8px",
             }}
           >
-            <a href="/auth/signin" className="home-cta-primary">
+            <a href="/login?next=/jokes" className="home-cta-primary">
               View captions
             </a>
           </div>
