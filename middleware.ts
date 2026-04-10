@@ -1,18 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseProjectId = process.env.SUPABASE_PROJECT_ID;
-const supabaseUrl =
-  process.env.SUPABASE_URL ||
-  (supabaseProjectId ? `https://${supabaseProjectId}.supabase.co` : undefined);
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabaseEnv";
 
 export async function middleware(request: NextRequest) {
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
+
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next({
+  let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -24,6 +22,14 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+        });
+        response = NextResponse.next({
+          request: {
+            headers: request.headers,
+          },
+        });
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
@@ -53,6 +59,11 @@ export async function middleware(request: NextRequest) {
     homeUrl.search = "";
     return NextResponse.redirect(homeUrl);
   }
+
+  response.headers.set(
+    "Cache-Control",
+    "private, no-cache, no-store, max-age=0, must-revalidate"
+  );
 
   return response;
 }

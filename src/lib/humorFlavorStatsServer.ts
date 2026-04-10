@@ -11,6 +11,78 @@ const PAGE = 1000;
 
 type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
+export type FlavorLeaderboardApiRow = {
+  flavorId: number;
+  slug: string | null;
+  captionCount: number;
+  upvotes: number;
+  downvotes: number;
+  upvotesPerCaption: number;
+};
+
+export type FlavorStatsExample = {
+  id: string;
+  content: string | null;
+  imageUrl: string;
+  upvotes: number;
+};
+
+export type FlavorStatsPayload = {
+  leaderboard: FlavorLeaderboardApiRow[];
+  topFlavor: {
+    id: number;
+    slug: string | null;
+    description: string | null;
+  } | null;
+  examples: FlavorStatsExample[];
+};
+
+export type FlavorStatsComputeResult =
+  | { ok: true; viewerId: string; payload: FlavorStatsPayload }
+  | { ok: false; viewerId: string; error: string; flavorError?: string };
+
+function parseFlavorStatsRpc(data: unknown): FlavorStatsPayload | null {
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  if (!Array.isArray(o.leaderboard)) return null;
+
+  const leaderboard: FlavorLeaderboardApiRow[] = o.leaderboard.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      flavorId: Number(r.flavorId),
+      slug: (r.slug as string | null) ?? null,
+      captionCount: Number(r.captionCount),
+      upvotes: Number(r.upvotes),
+      downvotes: Number(r.downvotes),
+      upvotesPerCaption: Number(r.upvotesPerCaption),
+    };
+  });
+
+  let topFlavor: FlavorStatsPayload["topFlavor"] = null;
+  if (o.topFlavor != null && typeof o.topFlavor === "object") {
+    const t = o.topFlavor as Record<string, unknown>;
+    topFlavor = {
+      id: Number(t.id),
+      slug: (t.slug as string | null) ?? null,
+      description: (t.description as string | null) ?? null,
+    };
+  }
+
+  const examples: FlavorStatsExample[] = Array.isArray(o.examples)
+    ? o.examples.map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          id: String(r.id),
+          content: (r.content as string | null) ?? null,
+          imageUrl: String(r.imageUrl ?? ""),
+          upvotes: Number(r.upvotes),
+        };
+      })
+    : [];
+
+  return { leaderboard, topFlavor, examples };
+}
+
 async function fetchAllCaptionsWithImages(
   supabase: ServerClient
 ): Promise<CaptionWithImageRow[]> {
@@ -47,37 +119,8 @@ async function fetchAllVotes(supabase: ServerClient): Promise<VoteRow[]> {
   return all;
 }
 
-export type FlavorLeaderboardApiRow = {
-  flavorId: number;
-  slug: string | null;
-  captionCount: number;
-  upvotes: number;
-  downvotes: number;
-  upvotesPerCaption: number;
-};
-
-export type FlavorStatsExample = {
-  id: string;
-  content: string | null;
-  imageUrl: string;
-  upvotes: number;
-};
-
-export type FlavorStatsPayload = {
-  leaderboard: FlavorLeaderboardApiRow[];
-  topFlavor: {
-    id: number;
-    slug: string | null;
-    description: string | null;
-  } | null;
-  examples: FlavorStatsExample[];
-};
-
-export type FlavorStatsComputeResult =
-  | { ok: true; viewerId: string; payload: FlavorStatsPayload }
-  | { ok: false; viewerId: string; error: string; flavorError?: string };
-
-export async function computeFlavorStatsForViewer(
+/** Slow path: paginate all captions + votes (many HTTP round-trips). */
+async function computeFlavorStatsPaginated(
   supabase: ServerClient,
   viewerId: string
 ): Promise<FlavorStatsComputeResult> {
@@ -154,4 +197,22 @@ export async function computeFlavorStatsForViewer(
   };
 
   return { ok: true, viewerId, payload };
+}
+
+export async function computeFlavorStatsForViewer(
+  supabase: ServerClient,
+  viewerId: string
+): Promise<FlavorStatsComputeResult> {
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "api_humor_flavor_stats_payload"
+  );
+
+  if (!rpcError && rpcData != null) {
+    const parsed = parseFlavorStatsRpc(rpcData);
+    if (parsed) {
+      return { ok: true, viewerId, payload: parsed };
+    }
+  }
+
+  return computeFlavorStatsPaginated(supabase, viewerId);
 }

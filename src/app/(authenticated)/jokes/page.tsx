@@ -6,10 +6,10 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 export default async function JokesPage() {
   const supabase = await createSupabaseServerClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/");
   }
 

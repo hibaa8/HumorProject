@@ -1,15 +1,13 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabaseEnv";
 
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseProjectId = process.env.SUPABASE_PROJECT_ID;
-const supabaseUrl =
-  process.env.SUPABASE_URL ||
-  (supabaseProjectId ? `https://${supabaseProjectId}.supabase.co` : undefined);
+const supabaseUrl = getSupabaseUrl();
+const supabaseAnonKey = getSupabaseAnonKey();
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    "Missing SUPABASE_URL (or SUPABASE_PROJECT_ID) or SUPABASE_ANON_KEY."
+    "Missing Supabase URL (SUPABASE_URL, NEXT_PUBLIC_SUPABASE_URL, or SUPABASE_PROJECT_ID) or anon key (SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY)."
   );
 }
 
