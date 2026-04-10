@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isFlavorIncluded } from "@/lib/humorFlavorFilters";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function GET() {
@@ -12,19 +13,6 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  const allowedSlugs = new Set([
-    "nature-documentary",
-    "gen-z-dark-roast",
-    "corecore-man",
-    "russ-hanemann",
-    "gigachad",
-    "dwight-schrute",
-    "columbia",
-    "pov-pov",
-  ]);
-
-  const excludedSlugs = new Set(["erlich-bachman", "social-justice-warrior"]);
 
   const { data: captionRows, error: captionError } = await supabase
     .from("captions")
@@ -41,18 +29,9 @@ export async function GET() {
   );
 
   const filtered =
-    data?.filter((flavor) => {
-      const slug = flavor.slug ?? "";
-      if (excludedSlugs.has(slug)) {
-        return false;
-      }
-      const isRequired =
-        allowedSlugs.has(slug) || slug.startsWith("ter-re-");
-      if (isRequired) {
-        return true;
-      }
-      return flavorIdsWithCaptions.has(flavor.id);
-    }) ?? [];
+    data?.filter((flavor) =>
+      isFlavorIncluded(flavor.slug, flavor.id, flavorIdsWithCaptions)
+    ) ?? [];
 
   return NextResponse.json({ data: filtered });
 }

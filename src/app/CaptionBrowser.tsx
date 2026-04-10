@@ -337,9 +337,9 @@ export default function CaptionBrowser() {
 
       <button
         type="button"
+        className="btn-show-more"
         onClick={loadMore}
         disabled={!hasMore || loading}
-        style={{ marginTop: "16px", padding: "8px 16px" }}
       >
         {loading ? "Loading..." : hasMore ? "Show more" : "No more results"}
       </button>

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Navbar() {
   return (
     <nav
@@ -6,34 +8,27 @@ export default function Navbar() {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
+        flexWrap: "wrap",
+        gap: "12px",
       }}
     >
-      <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-        <a
-          href="/jokes"
-          style={{ color: "#f9fafb", textDecoration: "none", fontWeight: 600 }}
-        >
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+        <Link href="/jokes" className="nav-text-link">
           Home
-        </a>
-        <a
-          href="/generate"
-          style={{ color: "#f9fafb", textDecoration: "none" }}
-        >
+        </Link>
+        <Link href="/dashboard" className="nav-text-link">
+          Dashboard
+        </Link>
+        <Link href="/stats" className="nav-text-link">
+          Flavor stats
+        </Link>
+        <Link href="/generate" className="nav-pill-primary">
           Generate captions
-        </a>
+        </Link>
       </div>
-      <a
-        href="/auth/logout"
-        style={{
-          color: "#f9fafb",
-          textDecoration: "none",
-          border: "1px solid #1f2937",
-          padding: "6px 12px",
-          borderRadius: "999px",
-        }}
-      >
+      <Link href="/auth/logout" className="nav-pill-outline">
         Log out
-      </a>
+      </Link>
     </nav>
   );
 }

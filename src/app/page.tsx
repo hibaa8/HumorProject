@@ -1,29 +1,9 @@
+import { getFlavorHowItWorks } from "@/lib/flavorContext";
+import { isFlavorIncluded } from "@/lib/humorFlavorFilters";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-
-type FlavorStats = {
-  id: number;
-  slug: string | null;
-  description: string | null;
-  captionCount: number;
-  upvotes: number;
-  downvotes: number;
-};
 
 export default async function Home() {
   const supabase = await createSupabaseServerClient();
-
-  const allowedSlugs = new Set([
-    "nature-documentary",
-    "gen-z-dark-roast",
-    "corecore-man",
-    "russ-hanemann",
-    "gigachad",
-    "dwight-schrute",
-    "columbia",
-    "pov-pov",
-  ]);
-
-  const excludedSlugs = new Set(["erlich-bachman", "social-justice-warrior"]);
 
   const { data: allFlavors } = await supabase
     .from("humor_flavors")
@@ -40,17 +20,9 @@ export default async function Home() {
       .filter((id): id is number => Boolean(id))
   );
 
-  const flavors = (allFlavors ?? []).filter((flavor) => {
-    const slug = flavor.slug ?? "";
-    if (excludedSlugs.has(slug)) {
-      return false;
-    }
-    const isRequired = allowedSlugs.has(slug) || slug.startsWith("ter-re-");
-    if (isRequired) {
-      return true;
-    }
-    return flavorIdsWithCaptions.has(flavor.id);
-  });
+  const flavors = (allFlavors ?? []).filter((flavor) =>
+    isFlavorIncluded(flavor.slug, flavor.id, flavorIdsWithCaptions)
+  );
 
   return (
     <main
@@ -86,29 +58,90 @@ export default async function Home() {
           </span>
           <h1 style={{ margin: 0 }}>Captions powered by flavor-driven humor</h1>
           <p style={{ margin: 0, color: "#cbd5f5", maxWidth: "720px" }}>
-            This app explores how different humor flavors shape caption styles,
-            from dry academic roast to chaotic meme logic. Dive into curated
-            flavors, vote on your favorites, and discover what lands.
+            Each humor flavor runs a different caption pipeline—tone, persona, and
+            punchline style change with the flavor. Sign in to browse and vote on
+            captions, upload an image to generate new lines, open your dashboard
+            to see what you voted on and created, and check stats to compare how
+            flavors perform.
           </p>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", paddingTop: "8px" }}>
-            <a
-              href="/auth/signin"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 22px",
-                borderRadius: "999px",
-                background: "#22c55e",
-                color: "#0b0b0f",
-                fontWeight: 700,
-                textDecoration: "none",
-              }}
-            >
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              flexWrap: "wrap",
+              paddingTop: "8px",
+            }}
+          >
+            <a href="/auth/signin" className="home-cta-primary">
               View captions
             </a>
           </div>
         </header>
+
+        <details
+          style={{
+            background: "#0f172a",
+            padding: "20px 24px",
+            borderRadius: "16px",
+            border: "1px solid #1f2937",
+          }}
+        >
+          <summary
+            style={{
+              cursor: "pointer",
+              fontWeight: 600,
+              color: "#e2e8f0",
+            }}
+          >
+            Why this page matters (user research)
+          </summary>
+          <div
+            style={{
+              marginTop: "16px",
+              color: "#cbd5f5",
+              display: "grid",
+              gap: "16px",
+              fontSize: "15px",
+              lineHeight: 1.55,
+            }}
+          >
+            <div>
+              <strong style={{ color: "#f8fafc" }}>What we observed</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: "1.25rem" }}>
+                <li>
+                  Most people jump straight to “generate captions” and skim the
+                  home page—they explore quickly to understand the app.
+                </li>
+                <li>
+                  Generate can feel slow; newcomers needed more context for what
+                  the app is for.
+                </li>
+                <li>
+                  Some controls did not read as buttons until we improved
+                  affordance.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <strong style={{ color: "#f8fafc" }}>What we changed</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: "1.25rem" }}>
+                <li>
+                  Clearer per-flavor explanations below (how each pipeline tends
+                  to behave).
+                </li>
+                <li>
+                  A dashboard for your votes and generated captions, plus a stats
+                  page ranking flavors by average upvotes per caption with top
+                  examples.
+                </li>
+                <li>
+                  Stronger button styling for key actions (including “Show more”
+                  in the browser).
+                </li>
+              </ul>
+            </div>
+          </div>
+        </details>
 
         <section
           style={{
@@ -119,11 +152,10 @@ export default async function Home() {
             boxShadow: "0 18px 36px rgba(0, 0, 0, 0.4)",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Flavor highlights</h2>
+          <h2 style={{ marginTop: 0 }}>How each humor flavor differs</h2>
           <p style={{ color: "#cbd5f5", marginTop: 0 }}>
-            Expect everything from documentary-style narration to sharp
-            Silicon Valley satire. Each flavor shapes the tone, punchline style,
-            and pacing of the caption.
+            Names alone were confusing in testing—these notes describe what each
+            flavor is trying to do so you can pick intentionally.
           </p>
           <div
             style={{
@@ -144,7 +176,7 @@ export default async function Home() {
               >
                 <strong>{flavor.slug ?? `Flavor ${flavor.id}`}</strong>
                 <p style={{ margin: "6px 0 0", color: "#cbd5f5" }}>
-                  {flavor.description ?? "No description available."}
+                  {getFlavorHowItWorks(flavor.slug, flavor.description)}
                 </p>
               </div>
             ))}
