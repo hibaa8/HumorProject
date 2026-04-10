@@ -283,17 +283,14 @@ export default function CaptionBrowser() {
               }}
             >
               {caption.images?.url ? (
-                <img
-                  src={caption.images.url}
-                  alt={caption.images.image_description ?? "Caption image"}
-                  style={{
-                    width: "100%",
-                    height: "240px",
-                    objectFit: "cover",
-                    background: "#0b0b0f",
-                    borderRadius: "10px",
-                  }}
-                />
+                <div className="caption-card-image-frame">
+                  <img
+                    src={caption.images.url}
+                    alt={
+                      caption.images.image_description ?? "Caption image"
+                    }
+                  />
+                </div>
               ) : null}
               <p style={{ margin: 0 }}>{caption.content ?? "Untitled caption"}</p>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>

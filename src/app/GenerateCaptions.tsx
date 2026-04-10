@@ -12,6 +12,25 @@ const allowedTypes = new Set([
   "image/heic",
 ]);
 
+/** Pipeline may return a bare array or { captions / data: [...] }. */
+function normalizeCaptionsResponse(raw: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(raw)) {
+    return raw as Array<Record<string, unknown>>;
+  }
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const fromCaptions = o.captions;
+    if (Array.isArray(fromCaptions)) {
+      return fromCaptions as Array<Record<string, unknown>>;
+    }
+    const fromData = o.data;
+    if (Array.isArray(fromData)) {
+      return fromData as Array<Record<string, unknown>>;
+    }
+  }
+  return [];
+}
+
 export default function GenerateCaptions() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pipelineStatus, setPipelineStatus] = useState<
@@ -61,34 +80,26 @@ export default function GenerateCaptions() {
         throw new Error("Failed to upload image.");
       }
 
-      const registerResponse = await fetch("/api/pipeline/register-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: presignedPayload.cdnUrl,
-          isCommonUse: false,
-        }),
-      });
-      if (!registerResponse.ok) {
-        throw new Error("Failed to register image.");
-      }
-      const registerPayload = (await registerResponse.json()) as {
-        imageId: string;
-      };
-
-      const captionsResponse = await fetch("/api/pipeline/generate-captions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageId: registerPayload.imageId }),
-      });
+      const captionsResponse = await fetch(
+        "/api/pipeline/register-and-generate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: presignedPayload.cdnUrl,
+            isCommonUse: false,
+          }),
+        }
+      );
       if (!captionsResponse.ok) {
-        throw new Error("Failed to generate captions.");
+        throw new Error("Failed to register image or generate captions.");
       }
-      const captionsPayload =
-        (await captionsResponse.json()) as Array<Record<string, unknown>>;
+
+      const raw = (await captionsResponse.json()) as unknown;
+      const captionsList = normalizeCaptionsResponse(raw);
 
       setUploadedImageUrl(presignedPayload.cdnUrl);
-      setGeneratedCaptions(captionsPayload ?? []);
+      setGeneratedCaptions(captionsList);
       setPipelineStatus("success");
     } catch (error) {
       setPipelineStatus("error");
@@ -184,17 +195,9 @@ export default function GenerateCaptions() {
                 }}
               >
                 {uploadedImageUrl ? (
-                  <img
-                    src={uploadedImageUrl}
-                    alt="Uploaded"
-                    style={{
-                      width: "100%",
-                      height: "220px",
-                      objectFit: "cover",
-                      borderRadius: "10px",
-                      background: "#0b0b0f",
-                    }}
-                  />
+                  <div className="caption-card-image-frame">
+                    <img src={uploadedImageUrl} alt="Uploaded" />
+                  </div>
                 ) : null}
                 <p style={{ margin: 0 }}>
                   {String(
