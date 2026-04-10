@@ -141,3 +141,20 @@
   height: auto;
   object-fit: contain;
 }
+
+/* Dashboard: up to 5 columns on wide screens (caption cards) */
+.dashboard-caption-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+
+@media (min-width: 1280px) {
+  .dashboard-caption-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.dashboard-dash-image.caption-card-image-frame {
+  height: 200px;
+}
