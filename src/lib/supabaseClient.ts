@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import { getSupabaseCookieOptions } from "@/lib/supabaseCookieOptions";
 
 const supabaseProjectId = process.env.SUPABASE_PROJECT_ID;
 const supabaseUrl =
@@ -15,4 +16,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Browser client: persists auth in cookies (same session as middleware / RSC) so
+ * the JWT remains valid for the whole session across navigations.
+ */
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  cookieOptions: getSupabaseCookieOptions(),
+});

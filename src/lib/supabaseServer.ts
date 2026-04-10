@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseCookieOptions } from "@/lib/supabaseCookieOptions";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabaseEnv";
 
 const supabaseUrl = getSupabaseUrl();
@@ -19,6 +20,7 @@ export const createSupabaseServerClient = async () => {
   };
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getSupabaseCookieOptions(),
     cookies: {
       getAll() {
         if (typeof cookieStoreAny.getAll === "function") {

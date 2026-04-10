@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseCookieOptions } from "@/lib/supabaseCookieOptions";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabaseEnv";
 
 export async function middleware(request: NextRequest) {
@@ -17,6 +18,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getSupabaseCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -33,9 +35,18 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  /*
+   * Use getSession() here, not getUser(). getUser() revalidates the JWT with a
+   * server round-trip and often returns null on Vercel Edge, which incorrectly
+   * triggers redirects to / for logged-in users. Session is read from cookies
+   * (and refreshed via setAll when needed). Route handlers / RSC should still
+   * use getUser() where you need a verified user.
+   */
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user ?? null;
 
   const pathname = request.nextUrl.pathname;
   const isPublicRoute =
