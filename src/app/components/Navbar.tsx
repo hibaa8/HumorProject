@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoutButton from "@/app/components/LogoutButton";
 
 export default function Navbar() {
   return (
@@ -26,9 +27,7 @@ export default function Navbar() {
           Generate captions
         </Link>
       </div>
-      <Link href="/auth/logout" className="nav-pill-outline">
-        Log out
-      </Link>
+      <LogoutButton className="nav-pill-outline" />
     </nav>
   );
 }
