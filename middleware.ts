@@ -70,7 +70,6 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isPublicRoute =
     pathname === "/" ||
-    pathname === "/login" ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
@@ -80,10 +79,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    const signinUrl = request.nextUrl.clone();
+    signinUrl.pathname = "/auth/signin";
+    signinUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(signinUrl);
   }
 
   response.headers.set(

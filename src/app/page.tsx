@@ -72,8 +72,8 @@ export default async function Home() {
               paddingTop: "8px",
             }}
           >
-            <a href="/login?next=/jokes" className="home-cta-primary">
-              View captions
+            <a href="/auth/signin" className="home-cta-primary">
+              Sign in with Google
             </a>
           </div>
         </header>

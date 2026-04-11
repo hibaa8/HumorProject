@@ -4,10 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const nextPath = getSafeInternalPath(
-    searchParams.get("next"),
-    "/jokes"
-  );
+  const nextPath = getSafeInternalPath(searchParams.get("next"), "/");
 
   const supabase = await createSupabaseServerClient();
 
