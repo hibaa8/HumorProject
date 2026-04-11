@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const nextPath = getSafeInternalPath(searchParams.get("next"), "/");
+  const nextPath = getSafeInternalPath(searchParams.get("next"), "/jokes");
 
   console.log("[auth/callback] origin:", origin, "has code:", !!code);
 
