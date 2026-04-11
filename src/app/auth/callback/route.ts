@@ -7,7 +7,10 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const nextPath = getSafeInternalPath(searchParams.get("next"), "/jokes");
 
+  console.log("[auth/callback] origin:", origin, "has code:", !!code);
+
   if (!code) {
+    console.log("[auth/callback] missing code — redirecting to login");
     return NextResponse.redirect(
       `${origin}/login?error=missing_code&next=${encodeURIComponent(nextPath)}`
     );
@@ -17,12 +20,14 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
+    console.error("[auth/callback] exchangeCodeForSession error:", error.message, error.status);
     return NextResponse.redirect(
       `${origin}/login?error=oauth_exchange_failed&next=${encodeURIComponent(nextPath)}`
     );
   }
 
-  await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("[auth/callback] session established:", !!session, "user:", session?.user?.email);
 
   return NextResponse.redirect(`${origin}${nextPath}`);
 }
