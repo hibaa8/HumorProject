@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
-import DashboardActivity from "./DashboardActivity";
-import { loadDashboardActivity } from "@/lib/dashboardActivity";
+import DashboardLanding from "./DashboardLanding";
+import { computeFlavorStatsForViewer } from "@/lib/humorFlavorStatsServer";
+import { getFlavorHowItWorks } from "@/lib/flavorContext";
+import { isFlavorIncluded } from "@/lib/humorFlavorFilters";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export default async function DashboardPage() {
@@ -14,7 +16,50 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const { generated, voted } = await loadDashboardActivity(supabase, user.id);
+  const [statsResult, flavorRes, captionRes, profileRes] = await Promise.all([
+    computeFlavorStatsForViewer(supabase, user.id),
+    supabase.from("humor_flavors").select("id, slug, description").order("id"),
+    supabase.from("captions").select("humor_flavor_id"),
+    supabase
+      .from("profiles")
+      .select("first_name")
+      .eq("id", user.id)
+      .maybeSingle<{ first_name: string | null }>(),
+  ]);
+
+  const allFlavorRows = flavorRes.data ?? [];
+  const flavorIdsWithCaptions = new Set(
+    (captionRes.data ?? [])
+      .map((row) => row.humor_flavor_id)
+      .filter((id): id is number => Boolean(id))
+  );
+
+  const includedFlavors = allFlavorRows
+    .filter((f) => isFlavorIncluded(f.slug, f.id, flavorIdsWithCaptions))
+    .map((f) => ({
+      id: f.id,
+      slug: f.slug,
+      description: getFlavorHowItWorks(f.slug, f.description),
+    }));
+
+  const leaderboard = statsResult.ok ? statsResult.payload.leaderboard : [];
+  const flavorMetaById = new Map(includedFlavors.map((f) => [f.id, f]));
+  const topFlavors = leaderboard
+    .map((row) => {
+      const meta = flavorMetaById.get(row.flavorId);
+      if (!meta) return null;
+      return {
+        id: meta.id,
+        slug: meta.slug,
+        description: meta.description,
+        upvotesPerCaption: row.upvotesPerCaption,
+        captionCount: row.captionCount,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .slice(0, 3);
+
+  const firstName = profileRes.data?.first_name ?? null;
 
   return (
     <main
@@ -27,20 +72,12 @@ export default async function DashboardPage() {
       }}
     >
       <Navbar />
-      <h1 style={{ marginTop: 0, maxWidth: "1400px", margin: "0 auto 8px" }}>
-        Your activity
-      </h1>
-      <p
-        style={{
-          color: "#94a3b8",
-          maxWidth: "1400px",
-          margin: "0 auto 24px",
-        }}
-      >
-        Captions you generated and jokes you voted on. Sort matches the browse
-        page: most upvotes, most downvotes, newest or oldest by caption date.
-      </p>
-      <DashboardActivity generated={generated} voted={voted} />
+
+      <DashboardLanding
+        firstName={firstName}
+        topFlavors={topFlavors}
+        allFlavors={includedFlavors}
+      />
     </main>
   );
 }

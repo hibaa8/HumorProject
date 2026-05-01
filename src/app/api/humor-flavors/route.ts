@@ -4,6 +4,13 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { data, error } = await supabase
     .from("humor_flavors")

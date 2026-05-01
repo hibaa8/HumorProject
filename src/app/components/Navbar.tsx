@@ -14,14 +14,17 @@ export default function Navbar() {
       }}
     >
       <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-        <Link href="/jokes" className="nav-text-link">
-          Home
-        </Link>
         <Link href="/dashboard" className="nav-text-link">
           Dashboard
         </Link>
+        <Link href="/jokes" className="nav-text-link">
+          Browse
+        </Link>
         <Link href="/stats" className="nav-text-link">
           Flavor stats
+        </Link>
+        <Link href="/activity" className="nav-text-link">
+          Your activity
         </Link>
         <Link href="/generate" className="nav-pill-primary">
           Generate captions

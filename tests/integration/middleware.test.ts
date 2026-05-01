@@ -15,8 +15,9 @@ vi.mock("@supabase/ssr", () => ({
   }),
 }));
 
-// Import AFTER mock is declared so the hoisted mock applies
-const { middleware } = await import("../../middleware");
+// Import AFTER mock is declared so the hoisted mock applies.
+// File is named proxy.ts in Next.js 16+, function is exported as `proxy`.
+const { proxy: middleware } = await import("../../src/proxy");
 
 function req(pathname: string) {
   return new NextRequest(`http://localhost:3000${pathname}`);

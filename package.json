@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

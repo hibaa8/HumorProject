@@ -3,6 +3,14 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user: authedUser },
+  } = await supabase.auth.getUser();
+
+  if (!authedUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const flavorIdParam = searchParams.get("flavorId");
   const sortParam = searchParams.get("sort");
