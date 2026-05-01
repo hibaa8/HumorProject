@@ -55,48 +55,61 @@ const selectStyle: CSSProperties = {
 export default function DashboardActivity({
   generated,
   voted,
+  variant = "full",
 }: {
   generated: DashboardCaptionItem[];
   voted: DashboardCaptionItem[];
+  /** `preview` shows server order (most recent); `full` adds sort controls. */
+  variant?: "preview" | "full";
 }) {
   const [sortBy, setSortBy] = useState<SortKey>("upvotes");
 
   const sortedGenerated = useMemo(
-    () => sortItems(generated, sortBy),
-    [generated, sortBy]
+    () =>
+      variant === "preview"
+        ? generated
+        : sortItems(generated, sortBy),
+    [generated, sortBy, variant]
   );
   const sortedVoted = useMemo(
-    () => sortItems(voted, sortBy),
-    [voted, sortBy]
+    () =>
+      variant === "preview" ? voted : sortItems(voted, sortBy),
+    [voted, sortBy, variant]
   );
+
+  const generatedTitle =
+    variant === "preview" ? "Recently generated" : "Generated captions";
+  const votedTitle = variant === "preview" ? "Recent votes" : "Votes";
 
   return (
     <section style={{ maxWidth: "1400px", margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "24px",
-        }}
-      >
-        <label style={{ color: "#e2e8f0" }}>
-          Sort both sections by:
-          <select
-            style={selectStyle}
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-          >
-            <option value="upvotes">Upvotes</option>
-            <option value="downvotes">Downvotes</option>
-            <option value="time">Most recent</option>
-            <option value="oldest">Oldest</option>
-          </select>
-        </label>
-      </div>
+      {variant === "full" ? (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "24px",
+          }}
+        >
+          <label style={{ color: "#e2e8f0" }}>
+            Sort both sections by:
+            <select
+              style={selectStyle}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+            >
+              <option value="upvotes">Upvotes</option>
+              <option value="downvotes">Downvotes</option>
+              <option value="time">Most recent</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </label>
+        </div>
+      ) : null}
 
-      <h2 style={{ marginTop: 0 }}>Generated captions</h2>
+      <h2 style={{ marginTop: 0 }}>{generatedTitle}</h2>
       {sortedGenerated.length === 0 ? (
         <p style={{ color: "#94a3b8" }}>
           None yet.{" "}
@@ -148,7 +161,7 @@ export default function DashboardActivity({
         </div>
       )}
 
-      <h2>Votes</h2>
+      <h2>{votedTitle}</h2>
       {sortedVoted.length === 0 ? (
         <p style={{ color: "#94a3b8" }}>
           No votes yet.{" "}
@@ -212,6 +225,35 @@ export default function DashboardActivity({
           ))}
         </div>
       )}
+
+      {variant === "preview" ? (
+        <div
+          style={{
+            marginTop: "40px",
+            paddingTop: "24px",
+            borderTop: "1px solid #1f2937",
+          }}
+        >
+          <Link
+            href="/activity/all"
+            className="nav-pill-outline"
+            style={{ display: "inline-block" }}
+          >
+            See all activity
+          </Link>
+          <p
+            style={{
+              color: "#64748b",
+              fontSize: "13px",
+              margin: "12px 0 0",
+              maxWidth: "520px",
+            }}
+          >
+            Opens a page with every caption you generated and all captions you
+            voted on, with sorting.
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }

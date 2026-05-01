@@ -9,15 +9,24 @@ import { loadDashboardActivity } from "@/lib/dashboardActivity";
 
 type FakeClient = Parameters<typeof loadDashboardActivity>[0];
 
-function makeChain(data: unknown) {
+function makeChain(data: unknown[]) {
+  let limitVal: number | null = null;
   const chain = {
     select: () => chain,
     eq: () => chain,
     in: () => chain,
     order: () => chain,
-    limit: () => chain,
-    then: (resolve: (v: unknown) => unknown) =>
-      Promise.resolve(resolve({ data, error: null })),
+    limit: (n: number) => {
+      limitVal = n;
+      return chain;
+    },
+    then: (resolve: (v: unknown) => unknown) => {
+      let out = data;
+      if (limitVal != null) {
+        out = data.slice(0, limitVal);
+      }
+      return Promise.resolve(resolve({ data: out, error: null }));
+    },
   };
   return chain;
 }
@@ -31,7 +40,7 @@ function makeClient(overrides: Partial<Record<string, unknown[]>> = {}): FakeCli
   };
 
   return {
-    from: (table: string) => makeChain(defaults[table] ?? []),
+    from: (table: string) => makeChain((defaults[table] ?? []) as unknown[]),
   } as unknown as FakeClient;
 }
 
@@ -135,5 +144,69 @@ describe("loadDashboardActivity", () => {
     });
     const result = await loadDashboardActivity(client, "user-1");
     expect(result.voted.filter((v) => v.id === "cap-20")).toHaveLength(1);
+  });
+
+  it("respects generatedQueryLimit when loading captions", async () => {
+    const client = makeClient({
+      captions: [
+        {
+          id: "a",
+          content: "1",
+          humor_flavor_id: null,
+          created_datetime_utc: "2024-02-01",
+          images: { url: "https://img/a.jpg" },
+        },
+        {
+          id: "b",
+          content: "2",
+          humor_flavor_id: null,
+          created_datetime_utc: "2024-01-01",
+          images: { url: "https://img/b.jpg" },
+        },
+      ],
+    });
+    const result = await loadDashboardActivity(client, "user-1", {
+      generatedQueryLimit: 1,
+    });
+    expect(result.generated).toHaveLength(1);
+    expect(result.generated[0].id).toBe("a");
+  });
+
+  it("applies votedListCap after deduplicating vote rows", async () => {
+    const client = makeClient({
+      caption_votes: [
+        { caption_id: "cap-a", vote_value: 1, created_datetime_utc: "2024-03-01" },
+        { caption_id: "cap-b", vote_value: -1, created_datetime_utc: "2024-02-01" },
+        { caption_id: "cap-c", vote_value: 1, created_datetime_utc: "2024-01-01" },
+      ],
+      captions: [
+        {
+          id: "cap-a",
+          content: "A",
+          humor_flavor_id: null,
+          created_datetime_utc: null,
+          images: { url: "https://img/a.jpg" },
+        },
+        {
+          id: "cap-b",
+          content: "B",
+          humor_flavor_id: null,
+          created_datetime_utc: null,
+          images: { url: "https://img/b.jpg" },
+        },
+        {
+          id: "cap-c",
+          content: "C",
+          humor_flavor_id: null,
+          created_datetime_utc: null,
+          images: { url: "https://img/c.jpg" },
+        },
+      ],
+    });
+    const result = await loadDashboardActivity(client, "user-1", {
+      votedListCap: 2,
+    });
+    expect(result.voted).toHaveLength(2);
+    expect(result.voted.map((v) => v.id)).toEqual(["cap-a", "cap-b"]);
   });
 });

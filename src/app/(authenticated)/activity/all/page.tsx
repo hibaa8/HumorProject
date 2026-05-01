@@ -1,15 +1,15 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
-import DashboardActivity from "../dashboard/DashboardActivity";
+import DashboardActivity from "../../dashboard/DashboardActivity";
 import {
-  ACTIVITY_PREVIEW_GENERATED_LIMIT,
-  ACTIVITY_PREVIEW_VOTE_ROWS_LIMIT,
-  ACTIVITY_PREVIEW_VOTED_CAP,
+  ACTIVITY_FULL_GENERATED_LIMIT,
+  ACTIVITY_FULL_VOTE_ROWS_LIMIT,
   loadDashboardActivity,
 } from "@/lib/dashboardActivity";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-export default async function ActivityPage() {
+export default async function ActivityAllPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -20,9 +20,8 @@ export default async function ActivityPage() {
   }
 
   const { generated, voted } = await loadDashboardActivity(supabase, user.id, {
-    generatedQueryLimit: ACTIVITY_PREVIEW_GENERATED_LIMIT,
-    voteRowsQueryLimit: ACTIVITY_PREVIEW_VOTE_ROWS_LIMIT,
-    votedListCap: ACTIVITY_PREVIEW_VOTED_CAP,
+    generatedQueryLimit: ACTIVITY_FULL_GENERATED_LIMIT,
+    voteRowsQueryLimit: ACTIVITY_FULL_VOTE_ROWS_LIMIT,
   });
 
   return (
@@ -37,7 +36,14 @@ export default async function ActivityPage() {
     >
       <Navbar />
       <section style={{ maxWidth: "1400px", margin: "0 auto" }}>
-        <h1 style={{ marginTop: 0, marginBottom: "8px" }}>Your activity</h1>
+        <p style={{ marginTop: 0, marginBottom: "8px" }}>
+          <Link href="/activity" className="nav-inline-link">
+            ← Back to recent activity
+          </Link>
+        </p>
+        <h1 style={{ marginTop: 0, marginBottom: "8px" }}>
+          All your activity
+        </h1>
         <p
           style={{
             color: "#94a3b8",
@@ -45,13 +51,14 @@ export default async function ActivityPage() {
             maxWidth: "780px",
           }}
         >
-          Your latest generated captions and your most recent votes. Use
-          &quot;See all activity&quot; for the full list with sorting.
+          Every caption you generated and every caption you voted on (up to
+          large limits for performance). Use the sort control to reorder both
+          sections.
         </p>
         <DashboardActivity
           generated={generated}
           voted={voted}
-          variant="preview"
+          variant="full"
         />
       </section>
     </main>

@@ -50,16 +50,39 @@ function normalizeImage(
   return row?.url ?? null;
 }
 
+/** Defaults for the full “all activity” page (see `/activity/all`). */
+export const ACTIVITY_FULL_GENERATED_LIMIT = 300;
+export const ACTIVITY_FULL_VOTE_ROWS_LIMIT = 800;
+
+/** Defaults for the `/activity` preview (most recent only). */
+export const ACTIVITY_PREVIEW_GENERATED_LIMIT = 5;
+export const ACTIVITY_PREVIEW_VOTE_ROWS_LIMIT = 80;
+export const ACTIVITY_PREVIEW_VOTED_CAP = 5;
+
+export type LoadDashboardActivityOptions = {
+  /** Max rows from `captions` for this user (default 100). */
+  generatedQueryLimit?: number;
+  /** Max `caption_votes` rows for this user (default 200). */
+  voteRowsQueryLimit?: number;
+  /** After building the voted list (vote-time order), keep only the first N. */
+  votedListCap?: number;
+};
+
 export async function loadDashboardActivity(
   supabase: ServerClient,
-  userId: string
+  userId: string,
+  options?: LoadDashboardActivityOptions
 ): Promise<{ generated: DashboardCaptionItem[]; voted: DashboardCaptionItem[] }> {
+  const generatedQueryLimit = options?.generatedQueryLimit ?? 100;
+  const voteRowsQueryLimit = options?.voteRowsQueryLimit ?? 200;
+  const votedListCap = options?.votedListCap;
+
   const { data: voteRows } = await supabase
     .from("caption_votes")
     .select("caption_id, vote_value, created_datetime_utc")
     .eq("profile_id", userId)
     .order("created_datetime_utc", { ascending: false })
-    .limit(200);
+    .limit(voteRowsQueryLimit);
 
   const voteCaptionIds = [
     ...new Set((voteRows ?? []).map((r) => r.caption_id)),
@@ -92,7 +115,7 @@ export async function loadDashboardActivity(
     )
     .eq("profile_id", userId)
     .order("created_datetime_utc", { ascending: false })
-    .limit(100);
+    .limit(generatedQueryLimit);
 
   const myList = myCaptions ?? [];
 
@@ -177,5 +200,8 @@ export async function loadDashboardActivity(
     });
   }
 
-  return { generated, voted };
+  const votedFinal =
+    votedListCap != null ? voted.slice(0, votedListCap) : voted;
+
+  return { generated, voted: votedFinal };
 }

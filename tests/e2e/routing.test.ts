@@ -33,6 +33,12 @@ describe("E2E routing", () => {
     expect(res.headers.get("location")).toContain("/auth/signin");
   });
 
+  it("/activity/all redirects unauthenticated user to /auth/signin", async () => {
+    const res = await fetch(`${BASE}/activity/all`, { redirect: "manual" });
+    expect([301, 302, 307, 308]).toContain(res.status);
+    expect(res.headers.get("location")).toContain("/auth/signin");
+  });
+
   it("/api/captions returns 401 JSON when logged out", async () => {
     const res = await fetch(`${BASE}/api/captions`);
     expect(res.status).toBe(401);
