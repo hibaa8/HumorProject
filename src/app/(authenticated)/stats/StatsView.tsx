@@ -4,7 +4,6 @@ import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
-import { getFlavorHowItWorks } from "@/lib/flavorContext";
 import type { FlavorStatsPayload } from "@/lib/humorFlavorStatsServer";
 
 const STORAGE_KEY = "humor-flavor-stats-v1";
@@ -127,7 +126,7 @@ export default function StatsView({ viewerId }: { viewerId: string }) {
     );
   }
 
-  const { leaderboard, topFlavor, examples } = state.payload;
+  const { leaderboard } = state.payload;
 
   return (
     <main
@@ -198,56 +197,6 @@ export default function StatsView({ viewerId }: { viewerId: string }) {
               </tbody>
             </table>
           </div>
-        )}
-
-        {topFlavor && examples.length > 0 && (
-          <section style={{ marginTop: "40px" }}>
-            <h2>Top examples — {topFlavor.slug ?? topFlavor.id}</h2>
-            <p style={{ color: "#94a3b8", maxWidth: "720px" }}>
-              {getFlavorHowItWorks(topFlavor.slug, topFlavor.description)}
-            </p>
-            <div
-              style={{
-                display: "grid",
-                gap: "16px",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                marginTop: "16px",
-              }}
-            >
-              {examples.map((ex) => (
-                <article
-                  key={ex.id}
-                  style={{
-                    borderRadius: "12px",
-                    border: "1px solid #1f2937",
-                    background: "#111827",
-                    overflow: "hidden",
-                  }}
-                >
-                  {ex.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={ex.imageUrl}
-                      alt=""
-                      style={{
-                        width: "100%",
-                        height: "160px",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : null}
-                  <div style={{ padding: "12px" }}>
-                    <div style={{ fontSize: "12px", color: "#22c55e" }}>
-                      {ex.upvotes} upvotes
-                    </div>
-                    <p style={{ margin: "8px 0 0", fontSize: "14px" }}>
-                      {ex.content}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
         )}
 
         <p style={{ marginTop: "32px", fontSize: "14px" }}>

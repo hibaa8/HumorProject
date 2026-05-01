@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { almostCrackdFetch } from "@/lib/almostCrackdClient";
+import {
+  almostCrackdFetch,
+  isPipelineImageContentType,
+  normalizePipelineContentType,
+  extractPresignUploadResponse,
+} from "@/lib/almostCrackdClient";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export async function POST(request: Request) {
@@ -8,6 +13,14 @@ export async function POST(request: Request) {
   if (!contentType) {
     return NextResponse.json(
       { error: "Missing contentType." },
+      { status: 400 }
+    );
+  }
+
+  const normalized = normalizePipelineContentType(contentType);
+  if (!isPipelineImageContentType(contentType)) {
+    return NextResponse.json(
+      { error: "Unsupported contentType for pipeline upload." },
       { status: 400 }
     );
   }
@@ -25,11 +38,27 @@ export async function POST(request: Request) {
     "/pipeline/generate-presigned-url",
     {
       method: "POST",
-      body: JSON.stringify({ contentType }),
+      body: JSON.stringify({ contentType: normalized }),
     },
     session.access_token
   );
 
   const payload = await response.json();
-  return NextResponse.json(payload, { status: response.status });
+  if (!response.ok) {
+    return NextResponse.json(payload, { status: response.status });
+  }
+
+  const extracted = extractPresignUploadResponse(payload);
+  if (!extracted) {
+    return NextResponse.json(
+      {
+        error:
+          "Presign response missing presignedUrl or public image URL (cdnUrl).",
+        raw: payload,
+      },
+      { status: 502 }
+    );
+  }
+
+  return NextResponse.json(extracted, { status: 200 });
 }

@@ -2,15 +2,12 @@
 "use client";
 
 import { useState } from "react";
-
-const allowedTypes = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/heic",
-]);
+import {
+  isPipelineImageContentType,
+  normalizePipelineContentType,
+  extractPresignUploadResponse,
+  pipelineErrorMessageFromBody,
+} from "@/lib/almostCrackdClient";
 
 /** Pipeline may return a bare array or { captions / data: [...] }. */
 function normalizeCaptionsResponse(raw: unknown): Array<Record<string, unknown>> {
@@ -47,10 +44,14 @@ export default function GenerateCaptions() {
       setPipelineError("Please choose an image file.");
       return;
     }
-    if (!allowedTypes.has(selectedFile.type)) {
+    if (!isPipelineImageContentType(selectedFile.type)) {
       setPipelineError("Unsupported image type.");
       return;
     }
+
+    const contentTypeForPipeline = normalizePipelineContentType(
+      selectedFile.type
+    );
 
     setPipelineStatus("uploading");
     setPipelineError(null);
@@ -58,26 +59,40 @@ export default function GenerateCaptions() {
     setUploadedImageUrl(null);
 
     try {
+      // 1) Presign → 2) PUT bytes to presignedUrl (same Content-Type as step 1) →
+      // 3–4) register cdnUrl then generate-captions (Bearer JWT) via Next BFF.
       const presignedResponse = await fetch("/api/pipeline/presigned-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: selectedFile.type }),
+        body: JSON.stringify({ contentType: contentTypeForPipeline }),
       });
+      const presignedPayload: unknown = await presignedResponse
+        .json()
+        .catch(() => null);
       if (!presignedResponse.ok) {
-        throw new Error("Failed to generate upload URL.");
+        throw new Error(
+          pipelineErrorMessageFromBody(
+            presignedPayload,
+            "Failed to generate upload URL."
+          )
+        );
       }
-      const presignedPayload = (await presignedResponse.json()) as {
-        presignedUrl: string;
-        cdnUrl: string;
-      };
+      const urls = extractPresignUploadResponse(presignedPayload);
+      if (!urls) {
+        throw new Error(
+          "Upload URL response missing presignedUrl or cdnUrl. Check server logs."
+        );
+      }
 
-      const uploadResponse = await fetch(presignedPayload.presignedUrl, {
+      const uploadResponse = await fetch(urls.presignedUrl, {
         method: "PUT",
-        headers: { "Content-Type": selectedFile.type },
+        headers: { "Content-Type": contentTypeForPipeline },
         body: selectedFile,
       });
       if (!uploadResponse.ok) {
-        throw new Error("Failed to upload image.");
+        throw new Error(
+          `Failed to upload image to storage (HTTP ${uploadResponse.status}).`
+        );
       }
 
       const captionsResponse = await fetch(
@@ -86,19 +101,26 @@ export default function GenerateCaptions() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            imageUrl: presignedPayload.cdnUrl,
+            imageUrl: urls.cdnUrl,
             isCommonUse: false,
           }),
         }
       );
+      const registerGeneratePayload: unknown = await captionsResponse
+        .json()
+        .catch(() => null);
       if (!captionsResponse.ok) {
-        throw new Error("Failed to register image or generate captions.");
+        throw new Error(
+          pipelineErrorMessageFromBody(
+            registerGeneratePayload,
+            "Failed to register image or generate captions."
+          )
+        );
       }
 
-      const raw = (await captionsResponse.json()) as unknown;
-      const captionsList = normalizeCaptionsResponse(raw);
+      const captionsList = normalizeCaptionsResponse(registerGeneratePayload);
 
-      setUploadedImageUrl(presignedPayload.cdnUrl);
+      setUploadedImageUrl(urls.cdnUrl);
       setGeneratedCaptions(captionsList);
       setPipelineStatus("success");
     } catch (error) {

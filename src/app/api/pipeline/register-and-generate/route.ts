@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { almostCrackdFetch } from "@/lib/almostCrackdClient";
+import {
+  almostCrackdFetch,
+  pipelineErrorMessageFromBody,
+} from "@/lib/almostCrackdClient";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 function pickImageId(body: Record<string, unknown>): string | undefined {
@@ -9,14 +12,25 @@ function pickImageId(body: Record<string, unknown>): string | undefined {
     return undefined;
   };
 
-  const direct = asString(body.imageId ?? body.image_id);
+  const direct = asString(body.imageId ?? body.image_id ?? body.id);
   if (direct) return direct;
 
   const data = body.data;
   if (data && typeof data === "object" && !Array.isArray(data)) {
     const nested = asString(
       (data as Record<string, unknown>).imageId ??
-        (data as Record<string, unknown>).image_id
+        (data as Record<string, unknown>).image_id ??
+        (data as Record<string, unknown>).id
+    );
+    if (nested) return nested;
+  }
+
+  const result = body.result;
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    const nested = asString(
+      (result as Record<string, unknown>).imageId ??
+        (result as Record<string, unknown>).image_id ??
+        (result as Record<string, unknown>).id
     );
     if (nested) return nested;
   }
@@ -29,12 +43,13 @@ function pickImageId(body: Record<string, unknown>): string | undefined {
  * pipeline, then generate captions. Saves a client↔Next round-trip vs two separate calls.
  */
 export async function POST(request: Request) {
-  const { imageUrl, isCommonUse } = (await request.json()) as {
+  const { imageUrl, isCommonUse, humorFlavorId } = (await request.json()) as {
     imageUrl?: string;
     isCommonUse?: boolean;
+    humorFlavorId?: number | string;
   };
 
-  if (!imageUrl) {
+  if (!imageUrl?.trim()) {
     return NextResponse.json({ error: "Missing imageUrl." }, { status: 400 });
   }
 
@@ -54,16 +69,37 @@ export async function POST(request: Request) {
     {
       method: "POST",
       body: JSON.stringify({
-        imageUrl,
+        imageUrl: imageUrl.trim(),
         isCommonUse: Boolean(isCommonUse),
       }),
     },
     token
   );
 
-  const registerJson = (await registerRes.json()) as Record<string, unknown>;
+  let registerJson: Record<string, unknown>;
+  try {
+    registerJson = (await registerRes.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      {
+        error: "Pipeline register returned a non-JSON response.",
+        status: registerRes.status,
+      },
+      { status: 502 }
+    );
+  }
   if (!registerRes.ok) {
-    return NextResponse.json(registerJson, { status: registerRes.status });
+    return NextResponse.json(
+      {
+        ...registerJson,
+        error:
+          pipelineErrorMessageFromBody(
+            registerJson,
+            `Pipeline register failed (HTTP ${registerRes.status}).`
+          ),
+      },
+      { status: registerRes.status }
+    );
   }
 
   const imageId = pickImageId(registerJson);
@@ -77,15 +113,52 @@ export async function POST(request: Request) {
     );
   }
 
+  const generateBody: Record<string, unknown> = { imageId };
+  if (humorFlavorId != null && humorFlavorId !== "") {
+    const n = Number(humorFlavorId);
+    if (Number.isFinite(n)) {
+      generateBody.humorFlavorId = n;
+    }
+  }
+
   const generateRes = await almostCrackdFetch(
     "/pipeline/generate-captions",
     {
       method: "POST",
-      body: JSON.stringify({ imageId }),
+      body: JSON.stringify(generateBody),
     },
     token
   );
 
-  const generatePayload = await generateRes.json();
+  let generatePayload: unknown;
+  try {
+    generatePayload = await generateRes.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: "Pipeline generate-captions returned a non-JSON response.",
+        status: generateRes.status,
+      },
+      { status: 502 }
+    );
+  }
+
+  if (!generateRes.ok) {
+    const bodyObj =
+      generatePayload && typeof generatePayload === "object"
+        ? (generatePayload as Record<string, unknown>)
+        : {};
+    return NextResponse.json(
+      {
+        ...bodyObj,
+        error: pipelineErrorMessageFromBody(
+          generatePayload,
+          `Generate captions failed (HTTP ${generateRes.status}).`
+        ),
+      },
+      { status: generateRes.status }
+    );
+  }
+
   return NextResponse.json(generatePayload, { status: generateRes.status });
 }
