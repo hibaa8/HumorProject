@@ -16,10 +16,10 @@ afterEach(() => {
 });
 
 describe("getSupabaseUrl", () => {
-  it("prefers SUPABASE_URL first", () => {
+  it("prefers NEXT_PUBLIC_SUPABASE_URL first (matches browser client)", () => {
     process.env.SUPABASE_URL = "https://custom.example.com";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://other.example.com";
-    expect(getSupabaseUrl()).toBe("https://custom.example.com");
+    expect(getSupabaseUrl()).toBe("https://other.example.com");
   });
 
   it("falls back to NEXT_PUBLIC_SUPABASE_URL", () => {

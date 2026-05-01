@@ -1,18 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 
+/**
+ * Full navigation to `/auth/logout` so the Route Handler can clear all `sb-*`
+ * session cookies on the response. Client-only `signOut()` often leaves
+ * chunked cookies that still satisfy `getSession()` in `proxy.ts`.
+ */
 export default function LogoutButton({ className }: { className?: string }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setLoading(true);
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+    window.location.assign("/auth/logout");
   };
 
   return (
